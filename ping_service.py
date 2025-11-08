@@ -7,14 +7,21 @@ from icmplib import async_ping
 
 
 class PingService:
-    def __init__(self, anomaly_threshold: float = 30.0, anomaly_count: int = 5):
+    def __init__(self, anomaly_threshold: float = 30.0, anomaly_count: int = 5, ping_interval: int = 5):
         self.anomaly_threshold = anomaly_threshold
         self.anomaly_count = anomaly_count
+        self.ping_interval = ping_interval
         self.logger = logging.getLogger("AuroraMonitor.Ping")
         
-        # Store ping history for anomaly detection (last 100 pings per target)
-        self.ping_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
+        # Calculate history size to keep 300 seconds of data
+        # 300 seconds / ping_interval = number of pings in 300 seconds
+        history_size = max(60, 300 // ping_interval)  # Minimum 60, usually 60 pings for 5s interval
+        
+        # Store ping history for anomaly detection (300 seconds worth of data)
+        self.ping_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=history_size))
         self.anomaly_counters: Dict[str, int] = defaultdict(int)
+        
+        self.logger.info(f"Ping history will keep last {history_size} pings (~300 seconds)")
     
     async def icmp_ping(self, host: str, timeout: int = 2) -> Tuple[bool, float]:
         """

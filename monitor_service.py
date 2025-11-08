@@ -29,7 +29,8 @@ class MonitorService:
         # Initialize services
         self.ping_service = PingService(
             anomaly_threshold=self.anomaly_threshold,
-            anomaly_count=self.anomaly_count
+            anomaly_count=self.anomaly_count,
+            ping_interval=self.ping_interval
         )
         self.discord_service = DiscordService(
             token=self.discord_token,
