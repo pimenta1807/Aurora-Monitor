@@ -26,9 +26,16 @@ class PingService:
         """
         try:
             # Determine ping command based on OS
-            param = '-n' if platform.system().lower() == 'windows' else '-c'
-            timeout_param = '-w' if platform.system().lower() == 'windows' else '-W'
-            timeout_value = str(timeout * 1000 if platform.system().lower() == 'windows' else timeout)
+            system = platform.system().lower()
+            
+            if system == 'windows':
+                param = '-n'
+                timeout_param = '-w'
+                timeout_value = str(timeout * 1000)
+            else:  # Linux/Unix
+                param = '-c'
+                timeout_param = '-W'
+                timeout_value = str(timeout)
             
             command = ['ping', param, '1', timeout_param, timeout_value, host]
             
@@ -37,7 +44,8 @@ class PingService:
                 command, 
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.PIPE, 
-                timeout=timeout + 1
+                timeout=timeout + 1,
+                text=True
             )
             end_time = time.time()
             
@@ -45,9 +53,19 @@ class PingService:
                 latency = (end_time - start_time) * 1000
                 return True, latency
             else:
+                # Log detailed error for debugging
+                self.logger.debug(f"ICMP ping failed for {host}: returncode={result.returncode}")
+                if result.stderr:
+                    self.logger.debug(f"STDERR: {result.stderr.strip()}")
                 return False, 0.0
+        except FileNotFoundError:
+            self.logger.error(f"'ping' command not found. Install iputils-ping package.")
+            return False, 0.0
+        except subprocess.TimeoutExpired:
+            self.logger.debug(f"ICMP ping timeout for {host}")
+            return False, 0.0
         except Exception as e:
-            self.logger.debug(f"ICMP ping error for {host}: {e}")
+            self.logger.error(f"ICMP ping error for {host}: {type(e).__name__}: {e}")
             return False, 0.0
     
     def dns_ping(self, host: str, timeout: int = 2) -> Tuple[bool, float]:
