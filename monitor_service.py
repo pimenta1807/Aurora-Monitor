@@ -93,7 +93,7 @@ class MonitorService:
                         )
                         self.failed_targets[target] = False
                     
-                    self.logger.info(f"[{target_type}] {target}: {latency:.2f}ms (OK)")
+                    # self.logger.info(f"[{target_type}] {target}: {latency:.2f}ms (OK)")
                 else:
                     # Target failed all retries
                     if not self.failed_targets[target]:
