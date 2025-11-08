@@ -124,6 +124,20 @@ class PingService:
             return 0.0
         return statistics.mean(history)
     
+    def get_min_latency(self, target: str) -> float:
+        """Get minimum latency for a target"""
+        history = self.ping_history[target]
+        if len(history) == 0:
+            return 0.0
+        return min(history)
+    
+    def get_max_latency(self, target: str) -> float:
+        """Get maximum latency for a target"""
+        history = self.ping_history[target]
+        if len(history) == 0:
+            return 0.0
+        return max(history)
+    
     def reset_anomaly_counter(self, target: str):
         """Reset anomaly counter for a target"""
         self.anomaly_counters[target] = 0

@@ -154,7 +154,9 @@ class MonitorService:
                 'target': target,
                 'status': 'offline' if self.failed_targets.get(target, False) else 'online',
                 'current_ms': self.latest_latency.get(target, 0.0),
-                'avg_ms': self.ping_service.get_average_latency(target)
+                'avg_ms': self.ping_service.get_average_latency(target),
+                'min_ms': self.ping_service.get_min_latency(target),
+                'max_ms': self.ping_service.get_max_latency(target)
             }
             stats['targets'].append(target_info)
             if target_info['status'] == 'online':

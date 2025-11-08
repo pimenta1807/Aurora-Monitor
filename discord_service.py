@@ -62,7 +62,7 @@ class DiscordService:
             # Create embed with statistics
             embed = discord.Embed(
                 title="📊 Estatísticas de Latência",
-                description=f"Latência atual para todos os destinos monitorados",
+                description=f"Latência e média dos últimos 300 segundos (5 min)",
                 color=0x00BFFF,
                 timestamp=datetime.utcnow()
             )
@@ -75,7 +75,9 @@ class DiscordService:
                     targets_text.append(
                         f"{status_icon} **{target_info['target']}**\n"
                         f"├ Atual: `{target_info['current_ms']:.2f}ms`\n"
-                        f"└ Média: `{target_info['avg_ms']:.2f}ms`"
+                        f"├ Média (5min): `{target_info['avg_ms']:.2f}ms`\n"
+                        f"├ Mínima (5min): `{target_info['min_ms']:.2f}ms`\n"
+                        f"└ Máxima (5min): `{target_info['max_ms']:.2f}ms`"
                     )
                 else:
                     targets_text.append(f"{status_icon} **{target_info['target']}** - SEM CONEXÃO")
@@ -92,7 +94,7 @@ class DiscordService:
             uptime_percentage = (online_count / total_count * 100) if total_count > 0 else 0
             
             embed.add_field(
-                name="📈 Resumo",
+                name="📈 Resumo (Últimos 5 minutos)",
                 value=f"**Online:** {online_count}/{total_count} ({uptime_percentage:.1f}%)",
                 inline=False
             )
