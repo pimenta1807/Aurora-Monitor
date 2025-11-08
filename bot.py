@@ -13,12 +13,11 @@ def signal_handler(signum, frame):
 
 
 if __name__ == "__main__":
+    # Setup logger
     logger = setup_logger()
-
-    # Signal handlers for graceful shutdown
+    
+    # Setup signal handler for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
-    if sys.platform != 'win32':
-        signal.signal(signal.SIGTERM, signal_handler)
     
     try:
         monitor = MonitorService()
