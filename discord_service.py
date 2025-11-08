@@ -56,7 +56,7 @@ class DiscordService:
             stats = self.monitor_service.get_latency_statistics()
             
             if not stats['targets']:
-                await ctx.send("📊 No targets are currently being monitored")
+                await ctx.send("📊 Nenhum destino está sendo monitorado")
                 return
             
             # Create embed with statistics
@@ -67,45 +67,24 @@ class DiscordService:
                 timestamp=datetime.utcnow()
             )
             
-            # Add ICMP targets
-            if stats['icmp_targets']:
-                icmp_text = []
-                for target_info in stats['icmp_targets']:
-                    status_icon = "🟢" if target_info['status'] == 'online' else "🔴"
-                    if target_info['status'] == 'online':
-                        icmp_text.append(
-                            f"{status_icon} **{target_info['target']}**\n"
-                            f"├ Current: `{target_info['current_ms']:.2f}ms`\n"
-                            f"└ Average: `{target_info['avg_ms']:.2f}ms`"
-                        )
-                    else:
-                        icmp_text.append(f"{status_icon} **{target_info['target']}** - SEM CONEXÃO")
-                
-                embed.add_field(
-                    name=f"🌐 Destinos ICMP ({len(stats['icmp_targets'])})",
-                    value="\n\n".join(icmp_text) if icmp_text else "Nenhum destino ICMP",
-                    inline=False
-                )
+            # Add all targets
+            targets_text = []
+            for target_info in stats['targets']:
+                status_icon = "🟢" if target_info['status'] == 'online' else "🔴"
+                if target_info['status'] == 'online':
+                    targets_text.append(
+                        f"{status_icon} **{target_info['target']}**\n"
+                        f"├ Atual: `{target_info['current_ms']:.2f}ms`\n"
+                        f"└ Média: `{target_info['avg_ms']:.2f}ms`"
+                    )
+                else:
+                    targets_text.append(f"{status_icon} **{target_info['target']}** - SEM CONEXÃO")
             
-            # Add DNS targets
-            if stats['dns_targets']:
-                dns_text = []
-                for target_info in stats['dns_targets']:
-                    status_icon = "🟢" if target_info['status'] == 'online' else "🔴"
-                    if target_info['status'] == 'online':
-                        dns_text.append(
-                            f"{status_icon} **{target_info['target']}**\n"
-                            f"├ Current: `{target_info['current_ms']:.2f}ms`\n"
-                            f"└ Average: `{target_info['avg_ms']:.2f}ms`"
-                        )
-                    else:
-                        dns_text.append(f"{status_icon} **{target_info['target']}** - SEM CONEXÃO")
-                
-                embed.add_field(
-                    name=f"📡 Destinos DNS ({len(stats['dns_targets'])})",
-                    value="\n\n".join(dns_text) if dns_text else "Nenhum destino DNS",
-                    inline=False
-                )
+            embed.add_field(
+                name=f"🌐 Destinos ({len(stats['targets'])})",
+                value="\n\n".join(targets_text) if targets_text else "Nenhum destino",
+                inline=False
+            )
             
             # Add summary
             online_count = stats['online_count']
@@ -170,15 +149,14 @@ class DiscordService:
         except Exception as e:
             self.logger.error(f"Failed to send Discord message: {e}")
     
-    async def send_startup_alert(self, icmp_count: int, dns_count: int, interval: int):
+    async def send_startup_alert(self, target_count: int, interval: int):
         """Send startup notification"""
         await self.send_alert(
             title="🚀 Monitor Iniciado",
             description="Monitoramento de conectividade iniciado",
             color=0x00BFFF,  # Blue
             fields=[
-                {'name': 'Alvos ICMP', 'value': str(icmp_count), 'inline': True},
-                {'name': 'Alvos DNS', 'value': str(dns_count), 'inline': True},
+                {'name': 'Alvos Monitorados', 'value': str(target_count), 'inline': True},
                 {'name': 'Intervalo', 'value': f"{interval}s", 'inline': True}
             ]
         )

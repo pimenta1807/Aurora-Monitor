@@ -1,12 +1,9 @@
 import asyncio
-import time
-import platform
-import subprocess
-import socket
 import statistics
 import logging
 from typing import Tuple, Dict
 from collections import deque, defaultdict
+from icmplib import async_ping
 
 
 class PingService:
@@ -19,80 +16,44 @@ class PingService:
         self.ping_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
         self.anomaly_counters: Dict[str, int] = defaultdict(int)
     
-    def icmp_ping(self, host: str, timeout: int = 2) -> Tuple[bool, float]:
+    async def icmp_ping(self, host: str, timeout: int = 2) -> Tuple[bool, float]:
         """
-        Perform ICMP ping to host
+        Perform ICMP ping to host using icmplib (pure Python implementation)
         Returns: (success, latency_ms)
         """
         try:
-            # Determine ping command based on OS
-            system = platform.system().lower()
+            # Use icmplib's async_ping which doesn't require system ping command
+            result = await async_ping(host, count=1, timeout=timeout, privileged=False)
             
-            if system == 'windows':
-                param = '-n'
-                timeout_param = '-w'
-                timeout_value = str(timeout * 1000)
-            else:  # Linux/Unix
-                param = '-c'
-                timeout_param = '-W'
-                timeout_value = str(timeout)
-            
-            command = ['ping', param, '1', timeout_param, timeout_value, host]
-            
-            start_time = time.time()
-            result = subprocess.run(
-                command, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE, 
-                timeout=timeout + 1,
-                text=True
-            )
-            end_time = time.time()
-            
-            if result.returncode == 0:
-                latency = (end_time - start_time) * 1000
-                return True, latency
+            if result.is_alive:
+                # result.avg_rtt is in milliseconds
+                return True, result.avg_rtt
             else:
-                # Log detailed error for debugging
-                self.logger.debug(f"ICMP ping failed for {host}: returncode={result.returncode}")
-                if result.stderr:
-                    self.logger.debug(f"STDERR: {result.stderr.strip()}")
                 return False, 0.0
-        except FileNotFoundError:
-            self.logger.error(f"'ping' command not found. Install iputils-ping package.")
-            return False, 0.0
-        except subprocess.TimeoutExpired:
-            self.logger.debug(f"ICMP ping timeout for {host}")
-            return False, 0.0
+                
+        except PermissionError:
+            # If unprivileged mode fails, try privileged mode
+            try:
+                result = await async_ping(host, count=1, timeout=timeout, privileged=True)
+                if result.is_alive:
+                    return True, result.avg_rtt
+                else:
+                    return False, 0.0
+            except Exception as e:
+                self.logger.error(f"ICMP ping error for {host} (privileged mode): {type(e).__name__}: {e}")
+                return False, 0.0
+                
         except Exception as e:
             self.logger.error(f"ICMP ping error for {host}: {type(e).__name__}: {e}")
-            return False, 0.0
-    
-    def dns_ping(self, host: str, timeout: int = 2) -> Tuple[bool, float]:
-        """
-        Perform DNS query (UDP) to host
-        Returns: (success, latency_ms)
-        """
-        try:
-            start_time = time.time()
-            socket.setdefaulttimeout(timeout)
-            socket.gethostbyname(host)
-            end_time = time.time()
-            
-            latency = (end_time - start_time) * 1000
-            return True, latency
-        except Exception as e:
-            self.logger.debug(f"DNS ping error for {host}: {e}")
             return False, 0.0
     
     async def ping_with_retry(
         self, 
         target: str, 
-        is_dns: bool = False, 
         retry_attempts: int = 3
     ) -> Tuple[bool, float, int]:
         """
-        Ping target with retry logic
+        Ping target with retry logic using ICMP
         Returns: (overall_success, average_latency, failed_attempts)
         """
         failed_attempts = 0
@@ -100,10 +61,7 @@ class PingService:
         successful_pings = 0
         
         for attempt in range(retry_attempts):
-            if is_dns:
-                success, latency = self.dns_ping(target)
-            else:
-                success, latency = self.icmp_ping(target)
+            success, latency = await self.icmp_ping(target)
             
             if success:
                 total_latency += latency

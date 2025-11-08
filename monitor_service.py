@@ -17,7 +17,6 @@ class MonitorService:
         self.discord_token = os.getenv('DISCORD_BOT_TOKEN')
         self.discord_channel_id = int(os.getenv('DISCORD_CHANNEL_ID', '0'))
         self.ping_targets = os.getenv('PING_TARGETS', '').split(';')
-        self.dns_targets = os.getenv('DNS_TARGETS', '').split(';')
         self.ping_interval = int(os.getenv('PING_INTERVAL', '5'))
         self.retry_attempts = int(os.getenv('RETRY_ATTEMPTS', '3'))
         self.anomaly_threshold = float(os.getenv('ANOMALY_THRESHOLD', '30'))
@@ -26,7 +25,6 @@ class MonitorService:
         
         # Remove empty strings from targets
         self.ping_targets = [t.strip() for t in self.ping_targets if t.strip()]
-        self.dns_targets = [t.strip() for t in self.dns_targets if t.strip()]
         
         # Initialize services
         self.ping_service = PingService(
@@ -53,18 +51,16 @@ class MonitorService:
         # Shutdown flag
         self.shutdown_requested = False
         
-        self.logger.info(f"Monitoring {len(self.ping_targets)} ICMP targets and {len(self.dns_targets)} DNS targets")
+        self.logger.info(f"Monitoring {len(self.ping_targets)} targets")
         self.logger.info(f"Ping interval: {self.ping_interval}s, Retries: {self.retry_attempts}")
     
-    async def monitor_target(self, target: str, is_dns: bool = False):
+    async def monitor_target(self, target: str, target_type: str = "ICMP"):
         """Monitor a single target continuously"""
-        target_type = "DNS" if is_dns else "ICMP"
         
         while not self.shutdown_requested:
             try:
                 success, latency, failures = await self.ping_service.ping_with_retry(
                     target, 
-                    is_dns=is_dns, 
                     retry_attempts=self.retry_attempts
                 )
                 
@@ -121,7 +117,7 @@ class MonitorService:
         while not self.shutdown_requested:
             await asyncio.sleep(30)  # Check every 30 seconds
             
-            total_targets = len(self.ping_targets) + len(self.dns_targets)
+            total_targets = len(self.ping_targets)
             if total_targets == 0:
                 continue
             
@@ -146,14 +142,12 @@ class MonitorService:
         Returns dictionary with statistics for Discord command
         """
         stats = {
-            'icmp_targets': [],
-            'dns_targets': [],
             'targets': [],
             'online_count': 0,
             'total_count': 0
         }
         
-        # Collect ICMP targets stats
+        # Collect targets stats
         for target in self.ping_targets:
             target_info = {
                 'target': target,
@@ -161,25 +155,11 @@ class MonitorService:
                 'current_ms': self.latest_latency.get(target, 0.0),
                 'avg_ms': self.ping_service.get_average_latency(target)
             }
-            stats['icmp_targets'].append(target_info)
             stats['targets'].append(target_info)
             if target_info['status'] == 'online':
                 stats['online_count'] += 1
         
-        # Collect DNS targets stats
-        for target in self.dns_targets:
-            target_info = {
-                'target': target,
-                'status': 'offline' if self.failed_targets.get(target, False) else 'online',
-                'current_ms': self.latest_latency.get(target, 0.0),
-                'avg_ms': self.ping_service.get_average_latency(target)
-            }
-            stats['dns_targets'].append(target_info)
-            stats['targets'].append(target_info)
-            if target_info['status'] == 'online':
-                stats['online_count'] += 1
-        
-        stats['total_count'] = len(self.ping_targets) + len(self.dns_targets)
+        stats['total_count'] = len(self.ping_targets)
         
         return stats
     
@@ -206,21 +186,16 @@ class MonitorService:
         
         tasks = [bot_task]
         
-        # Monitor ICMP targets
+        # Monitor all targets using ICMP
         for target in self.ping_targets:
-            tasks.append(asyncio.create_task(self.monitor_target(target, is_dns=False)))
-        
-        # Monitor DNS targets
-        for target in self.dns_targets:
-            tasks.append(asyncio.create_task(self.monitor_target(target, is_dns=True)))
+            tasks.append(asyncio.create_task(self.monitor_target(target, target_type="ICMP")))
         
         # Overall health checker
         tasks.append(asyncio.create_task(self.check_overall_health()))
         
         # Send startup notification
         await self.discord_service.send_startup_alert(
-            icmp_count=len(self.ping_targets),
-            dns_count=len(self.dns_targets),
+            target_count=len(self.ping_targets),
             interval=self.ping_interval
         )
         
