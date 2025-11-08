@@ -61,8 +61,8 @@ class DiscordService:
             
             # Create embed with statistics
             embed = discord.Embed(
-                title="📊 Latency Statistics",
-                description=f"Current latency for all monitored targets",
+                title="📊 Estatísticas de Latência",
+                description=f"Latência atual para todos os destinos monitorados",
                 color=0x00BFFF,
                 timestamp=datetime.utcnow()
             )
@@ -79,11 +79,11 @@ class DiscordService:
                             f"└ Average: `{target_info['avg_ms']:.2f}ms`"
                         )
                     else:
-                        icmp_text.append(f"{status_icon} **{target_info['target']}** - OFFLINE")
+                        icmp_text.append(f"{status_icon} **{target_info['target']}** - SEM CONEXÃO")
                 
                 embed.add_field(
-                    name=f"🌐 ICMP Targets ({len(stats['icmp_targets'])})",
-                    value="\n\n".join(icmp_text) if icmp_text else "No ICMP targets",
+                    name=f"🌐 Destinos ICMP ({len(stats['icmp_targets'])})",
+                    value="\n\n".join(icmp_text) if icmp_text else "Nenhum destino ICMP",
                     inline=False
                 )
             
@@ -99,11 +99,11 @@ class DiscordService:
                             f"└ Average: `{target_info['avg_ms']:.2f}ms`"
                         )
                     else:
-                        dns_text.append(f"{status_icon} **{target_info['target']}** - OFFLINE")
+                        dns_text.append(f"{status_icon} **{target_info['target']}** - SEM CONEXÃO")
                 
                 embed.add_field(
-                    name=f"📡 DNS Targets ({len(stats['dns_targets'])})",
-                    value="\n\n".join(dns_text) if dns_text else "No DNS targets",
+                    name=f"📡 Destinos DNS ({len(stats['dns_targets'])})",
+                    value="\n\n".join(dns_text) if dns_text else "Nenhum destino DNS",
                     inline=False
                 )
             
@@ -113,7 +113,7 @@ class DiscordService:
             uptime_percentage = (online_count / total_count * 100) if total_count > 0 else 0
             
             embed.add_field(
-                name="📈 Summary",
+                name="📈 Resumo",
                 value=f"**Online:** {online_count}/{total_count} ({uptime_percentage:.1f}%)",
                 inline=False
             )
@@ -173,13 +173,13 @@ class DiscordService:
     async def send_startup_alert(self, icmp_count: int, dns_count: int, interval: int):
         """Send startup notification"""
         await self.send_alert(
-            title="🚀 Aurora Monitor Started",
-            description="Server monitoring has begun",
+            title="🚀 Monitor Iniciado",
+            description="Monitoramento de conectividade iniciado",
             color=0x00BFFF,  # Blue
             fields=[
-                {'name': 'ICMP Targets', 'value': str(icmp_count), 'inline': True},
-                {'name': 'DNS Targets', 'value': str(dns_count), 'inline': True},
-                {'name': 'Ping Interval', 'value': f"{interval}s", 'inline': True}
+                {'name': 'Alvos ICMP', 'value': str(icmp_count), 'inline': True},
+                {'name': 'Alvos DNS', 'value': str(dns_count), 'inline': True},
+                {'name': 'Intervalo', 'value': f"{interval}s", 'inline': True}
             ]
         )
     
@@ -191,13 +191,13 @@ class DiscordService:
     ):
         """Send alert when target becomes unreachable"""
         await self.send_alert(
-            title=f"⚠️ Target Unreachable",
-            description=f"Failed to reach {target}",
+            title=f"⚠️ Conexão Perdida",
+            description=f"Não foi possível conectar com **{target}**",
             color=0xFFFF99,  # Light yellow
             fields=[
-                {'name': 'Target', 'value': target, 'inline': True},
-                {'name': 'Type', 'value': target_type, 'inline': True},
-                {'name': 'Failed Attempts', 'value': str(failed_attempts), 'inline': True}
+                {'name': 'Destino', 'value': target, 'inline': True},
+                {'name': 'Tipo', 'value': target_type, 'inline': True},
+                {'name': 'Tentativas Falhas', 'value': str(failed_attempts), 'inline': True}
             ]
         )
     
@@ -209,13 +209,13 @@ class DiscordService:
     ):
         """Send alert when target recovers"""
         await self.send_alert(
-            title=f"✅ Target Recovered",
-            description=f"{target} is now responding",
+            title=f"✅ Conexão Restaurada",
+            description=f"Conexão com **{target}** foi restabelecida",
             color=0x00FF00,  # Green
             fields=[
-                {'name': 'Target', 'value': target, 'inline': True},
-                {'name': 'Type', 'value': target_type, 'inline': True},
-                {'name': 'Latency', 'value': f"{latency:.2f}ms", 'inline': True}
+                {'name': 'Destino', 'value': target, 'inline': True},
+                {'name': 'Tipo', 'value': target_type, 'inline': True},
+                {'name': 'Latência', 'value': f"{latency:.2f}ms", 'inline': True}
             ]
         )
     
@@ -229,15 +229,15 @@ class DiscordService:
     ):
         """Send alert for latency anomaly"""
         await self.send_alert(
-            title=f"⚠️ Latency Anomaly Detected",
-            description=f"High latency detected for {target}",
+            title=f"⚠️ Latência Anormal Detectada",
+            description=f"Alta latência na conexão com **{target}**",
             color=0xFFA500,  # Orange
             fields=[
-                {'name': 'Target', 'value': target, 'inline': True},
-                {'name': 'Type', 'value': target_type, 'inline': True},
-                {'name': 'Current Latency', 'value': f"{current_latency:.2f}ms", 'inline': True},
-                {'name': 'Average Latency', 'value': f"{avg_latency:.2f}ms", 'inline': True},
-                {'name': 'Consecutive Anomalies', 'value': str(consecutive_count), 'inline': True}
+                {'name': 'Destino', 'value': target, 'inline': True},
+                {'name': 'Tipo', 'value': target_type, 'inline': True},
+                {'name': 'Latência Atual', 'value': f"{current_latency:.2f}ms", 'inline': True},
+                {'name': 'Latência Média', 'value': f"{avg_latency:.2f}ms", 'inline': True},
+                {'name': 'Anomalias Consecutivas', 'value': str(consecutive_count), 'inline': True}
             ]
         )
     
@@ -249,12 +249,12 @@ class DiscordService:
     ):
         """Send critical alert when multiple targets are down"""
         await self.send_alert(
-            title=f"🚨 CRITICAL: Multiple Targets Down",
-            description=f"**{failure_rate:.1f}%** of monitored targets are unreachable!",
+            title=f"🚨 CRÍTICO: Múltiplas Conexões Perdidas",
+            description=f"**{failure_rate:.1f}%** das conexões monitoradas estão indisponíveis!",
             color=0xFF0000,  # Red
             fields=[
-                {'name': 'Failed Targets', 'value': str(failed_count), 'inline': True},
-                {'name': 'Total Targets', 'value': str(total_count), 'inline': True},
-                {'name': 'Failure Rate', 'value': f"{failure_rate:.1f}%", 'inline': True}
+                {'name': 'Conexões Perdidas', 'value': str(failed_count), 'inline': True},
+                {'name': 'Total Monitorado', 'value': str(total_count), 'inline': True},
+                {'name': 'Taxa de Falha', 'value': f"{failure_rate:.1f}%", 'inline': True}
             ]
         )
