@@ -38,8 +38,14 @@ class MonitorService:
             channel_id=self.discord_channel_id
         )
         
+        # Set reference to this monitor service in discord service
+        self.discord_service.monitor_service = self
+        
         # Track failed targets
         self.failed_targets: Dict[str, bool] = defaultdict(bool)
+        
+        # Track latest latency for each target
+        self.latest_latency: Dict[str, float] = {}
         
         # Logger
         self.logger = logging.getLogger("AuroraMonitor.Monitor")
@@ -65,6 +71,9 @@ class MonitorService:
                 if success:
                     # Add to history for anomaly detection
                     self.ping_service.add_to_history(target, latency)
+                    
+                    # Store latest latency
+                    self.latest_latency[target] = latency
                     
                     # Check for anomalies
                     is_anomaly, avg_latency = self.ping_service.check_anomaly(target, latency)
@@ -130,6 +139,49 @@ class MonitorService:
             else:
                 # Reset alert flag when situation improves
                 alert_sent = False
+    
+    def get_latency_statistics(self) -> Dict:
+        """
+        Get current latency statistics for all targets
+        Returns dictionary with statistics for Discord command
+        """
+        stats = {
+            'icmp_targets': [],
+            'dns_targets': [],
+            'targets': [],
+            'online_count': 0,
+            'total_count': 0
+        }
+        
+        # Collect ICMP targets stats
+        for target in self.ping_targets:
+            target_info = {
+                'target': target,
+                'status': 'offline' if self.failed_targets.get(target, False) else 'online',
+                'current_ms': self.latest_latency.get(target, 0.0),
+                'avg_ms': self.ping_service.get_average_latency(target)
+            }
+            stats['icmp_targets'].append(target_info)
+            stats['targets'].append(target_info)
+            if target_info['status'] == 'online':
+                stats['online_count'] += 1
+        
+        # Collect DNS targets stats
+        for target in self.dns_targets:
+            target_info = {
+                'target': target,
+                'status': 'offline' if self.failed_targets.get(target, False) else 'online',
+                'current_ms': self.latest_latency.get(target, 0.0),
+                'avg_ms': self.ping_service.get_average_latency(target)
+            }
+            stats['dns_targets'].append(target_info)
+            stats['targets'].append(target_info)
+            if target_info['status'] == 'online':
+                stats['online_count'] += 1
+        
+        stats['total_count'] = len(self.ping_targets) + len(self.dns_targets)
+        
+        return stats
     
     def request_shutdown(self):
         """Request graceful shutdown"""

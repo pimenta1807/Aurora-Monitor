@@ -15,6 +15,9 @@ class DiscordService:
         self.is_ready = False
         self.logger = logging.getLogger("AuroraMonitor.Discord")
         
+        # Reference to monitor service (will be set externally)
+        self.monitor_service = None
+        
         intents = discord.Intents.default()
         intents.message_content = True
         self.bot = commands.Bot(command_prefix='!', intents=intents)
@@ -41,6 +44,81 @@ class DiscordService:
             """Check bot latency"""
             latency = round(self.bot.latency * 1000, 2)
             await ctx.send(f"🏓 Pong! Latency: {latency}ms")
+        
+        @self.bot.command(name='ms')
+        async def latency_stats(ctx):
+            """Show latency statistics for all monitored targets"""
+            if not self.monitor_service:
+                await ctx.send("❌ Monitor service not available")
+                return
+            
+            # Get statistics from monitor service
+            stats = self.monitor_service.get_latency_statistics()
+            
+            if not stats['targets']:
+                await ctx.send("📊 No targets are currently being monitored")
+                return
+            
+            # Create embed with statistics
+            embed = discord.Embed(
+                title="📊 Latency Statistics",
+                description=f"Current latency for all monitored targets",
+                color=0x00BFFF,
+                timestamp=datetime.utcnow()
+            )
+            
+            # Add ICMP targets
+            if stats['icmp_targets']:
+                icmp_text = []
+                for target_info in stats['icmp_targets']:
+                    status_icon = "🟢" if target_info['status'] == 'online' else "🔴"
+                    if target_info['status'] == 'online':
+                        icmp_text.append(
+                            f"{status_icon} **{target_info['target']}**\n"
+                            f"├ Current: `{target_info['current_ms']:.2f}ms`\n"
+                            f"└ Average: `{target_info['avg_ms']:.2f}ms`"
+                        )
+                    else:
+                        icmp_text.append(f"{status_icon} **{target_info['target']}** - OFFLINE")
+                
+                embed.add_field(
+                    name=f"🌐 ICMP Targets ({len(stats['icmp_targets'])})",
+                    value="\n\n".join(icmp_text) if icmp_text else "No ICMP targets",
+                    inline=False
+                )
+            
+            # Add DNS targets
+            if stats['dns_targets']:
+                dns_text = []
+                for target_info in stats['dns_targets']:
+                    status_icon = "🟢" if target_info['status'] == 'online' else "🔴"
+                    if target_info['status'] == 'online':
+                        dns_text.append(
+                            f"{status_icon} **{target_info['target']}**\n"
+                            f"├ Current: `{target_info['current_ms']:.2f}ms`\n"
+                            f"└ Average: `{target_info['avg_ms']:.2f}ms`"
+                        )
+                    else:
+                        dns_text.append(f"{status_icon} **{target_info['target']}** - OFFLINE")
+                
+                embed.add_field(
+                    name=f"📡 DNS Targets ({len(stats['dns_targets'])})",
+                    value="\n\n".join(dns_text) if dns_text else "No DNS targets",
+                    inline=False
+                )
+            
+            # Add summary
+            online_count = stats['online_count']
+            total_count = stats['total_count']
+            uptime_percentage = (online_count / total_count * 100) if total_count > 0 else 0
+            
+            embed.add_field(
+                name="📈 Summary",
+                value=f"**Online:** {online_count}/{total_count} ({uptime_percentage:.1f}%)",
+                inline=False
+            )
+            
+            await ctx.send(embed=embed)
     
     async def start_bot(self):
         """Start the Discord bot"""
